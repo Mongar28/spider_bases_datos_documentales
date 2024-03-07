@@ -1,0 +1,2 @@
+ls: no se puede acceder a '456': No existe el fichero o el directorio
+ls: no se puede acceder a '.txt': No existe el fichero o el directorio
