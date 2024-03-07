@@ -1,0 +1,8 @@
+div[@class="description"]//span[@class="titulo"]/a/text()
+
+ul[@class="listadoDeArticulos"]/li
+
+span[@class="titulo"]/a/text()
+
+
+
