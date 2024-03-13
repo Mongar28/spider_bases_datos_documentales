@@ -10,7 +10,6 @@ from scrapy.http import Request
 import random
 import time
 import re
-
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 
@@ -19,11 +18,13 @@ def generar_enlace_siguiente_pagina(url_inicial):
     url_parsed = urlparse(url_inicial)
     params = parse_qs(url_parsed.query)
 
-    # Incrementa el valor 'from' y 'page'
-    params['from'] = [str(int(params['from'][0]) + 15)]
-    params['page'] = [str(int(params['page'][0]) + 1)]
+    # Obtenemos el valor de 'start' o establecemos en 0 si no está presente
+    start_value = int(params.get('start', ['0'])[0])
 
-    # Construye la URL de la siguiente página
+    # Incrementamos el valor de 'start' en 10 para obtener la siguiente página
+    params['start'] = [str(start_value + 10)]
+
+    # Construimos la URL de la siguiente página
     url_next = urlunparse(
         (
             url_parsed.scheme,
@@ -69,17 +70,18 @@ class Scielo_spider(Spider):
     # Forma de configurar el USER AGENT en scrapy
     # Configuración personalizada del proceso de crawling
     custom_settings = {
-        'CONCURRENT_REQUESTS': 24,  # Número máximo de solicitudes simultáneas
-        'MEMUSAGE_LIMIT_MB': 2048,  # Límite máximo de uso de memoria
-        'USER_AGENT': user_agent_list[random.randint(0, len(user_agent_list) - 1)],
-        'ROBOTSTXT_OBEY': False,  # Respetar las reglas del archivo robots.txt
-        # Codificación de salida para los datos recolectados
+        'ROBOTSTXT_OBEY': False,
+        'CONCURRENT_REQUESTS': 24,
+        'DOWNLOAD_DELAY': 10,
+        'USER_AGENT': random.choice(user_agent_list),
+        'FEED_URI': 'articulos_scholar.csv',
+        'FEED_FORMAT': 'csv',
         'FEED_EXPORT_ENCODING': 'utf8',
-        'FEED_URI': 'articulos_scholar.json',  # Ruta de salida del archivo JSON
-        'FEED_FORMAT': 'json',  # Formato de salida del archivo JSON
-        'DOWNLOAD_DELAY': 2,
-        'DOWNLOAD_DELAY_FACTOR': 0.5,
-        'DOWNLOAD_DELAY_RANDOMIZE': True  # Retraso entre solicitudes consecutivas
+        # Agregar el código de estado 503 a los códigos de reintentos
+        'RETRY_HTTP_CODES': [503],
+        # Número de veces que se reintenta antes de considerar que ha fallado definitivamente
+        'RETRY_TIMES': 3,
+        'RETRY_DELAY': 5,  # Tiempo de espera en segundos entre cada reintento
     }
 
     # URL SEMILLA
@@ -104,8 +106,13 @@ class Scielo_spider(Spider):
             titulo = "".join(titulo).strip().replace('  ', ' ')
             
             # Autor
-            autor = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_a"]/a//text()').getall()
+            autor = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_a"]//text()').getall()
             autor = ",".join(autor)
+            
+            autor = autor.split('-')
+            print("*" * 100)
+            print(autor[0])
+            print("*" * 100)
             
             
             # Fecha   
@@ -127,12 +134,6 @@ class Scielo_spider(Spider):
                 num_citas = re.search(r'\d{1,9}', citas).group()
             else:
                 num_citas = '0'
-                
-
-            
-            print('*' * 40)
-            print(link)
-            print('' * 40)
             
             item = ItemLoader(Articulo(), articulo)
             
@@ -143,5 +144,19 @@ class Scielo_spider(Spider):
             item.add_xpath('Link', './/div[@class="gs_or_ggsm"]/a/@href')
    
             yield item.load_item()
-            time.sleep(random.uniform(1, 2))    
+            time.sleep(random.uniform(1, 2))
+        
+        # obtener el enlace a la siguiente página
+        siguiente = sel.xpath(
+            '//div[@id="gs_nm"]/button[@type="button"][2]/span[@class="gs_wr"]/span[@class="gs_ico"]').get()
+        
+        url_next = response.url
+        # url_next= re.sub(r'page=(\d+)', 'page={}'.format(numero), url_next)
+
+       # Genera la URL de la siguiente página
+        url_siguiente = generar_enlace_siguiente_pagina(url_next)
+        print(url_siguiente)
+
+        if siguiente is not None:
+            yield response.follow(url_siguiente, self.parse)
             
