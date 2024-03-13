@@ -56,8 +56,8 @@ class Articulo(Item):
     Titulo = Field()
     Fecha = Field()
     Autor = Field()
-    Descargas = Field()
-    Resumen = Field()
+    Citas = Field()
+    #Resumen = Field()
     Link = Field()
 
 # CLASE CORE - SPIDER
@@ -75,7 +75,7 @@ class Scielo_spider(Spider):
         'ROBOTSTXT_OBEY': False,  # Respetar las reglas del archivo robots.txt
         # Codificación de salida para los datos recolectados
         'FEED_EXPORT_ENCODING': 'utf8',
-        'FEED_URI': 'articulos_scielo_2.json',  # Ruta de salida del archivo JSON
+        'FEED_URI': 'articulos_scholar.json',  # Ruta de salida del archivo JSON
         'FEED_FORMAT': 'json',  # Formato de salida del archivo JSON
         'DOWNLOAD_DELAY': 2,
         'DOWNLOAD_DELAY_FACTOR': 0.5,
@@ -84,7 +84,7 @@ class Scielo_spider(Spider):
 
     # URL SEMILLA
     start_urls = [
-        'https://scholar.google.com/scholar?as_vis=1&q=ciencias+sociales+computacionales&hl=es&as_sdt=0,5'
+        'https://scholar.google.com/scholar?hl=es&as_sdt=0%2C5&as_vis=1&q=%22ciencias+sociales+computacionales%22+AND+%28%22estudios+sociales%22+OR+%22fenomenos+sociales%22+OR+impacto+OR+PLN+OR+NLP+OR+Bigdata+OR+IA+OR+%22Web+scraping%22+OR+Embbeding%29&btnG='
     ]
 
     # Funcion que se va a llamar cuando se haga el requerimiento a la URL semilla
@@ -96,12 +96,52 @@ class Scielo_spider(Spider):
       
         articulos = sel.xpath(
             '//div[@class="gs_r gs_or gs_scl"]')
-        print('*' * 100)
-        print(len(articulos))
-        print('*' * 100)
         
         for articulo in articulos:
-            art = articulo.xpath('.//h3[@class="gs_rt"]/a//text()').getall()
-            print('*' * 100)
-            print(art)
-            print('*' * 100)
+            
+            # titulo
+            titulo = articulo.xpath('.//h3[@class="gs_rt"]/a//text()').getall()
+            titulo = "".join(titulo).strip().replace('  ', ' ')
+            
+            # Autor
+            autor = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_a"]/a//text()').getall()
+            autor = ",".join(autor)
+            
+            
+            # Fecha   
+            info_articulo = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_a"]//text()').getall()
+
+            patron_fecha = r'\d{4}'
+            search_fecha = re.search(patron_fecha, info_articulo[-1])
+            
+            if search_fecha:
+                fecha = search_fecha.group()
+            else:
+                fecha = 'Null'
+            
+                        
+            # Citas
+            citas = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_fl gs_flb"]/a[3]/text()').get()
+            
+            if re.search(r'Citado', citas):
+                num_citas = re.search(r'\d{1,9}', citas).group()
+            else:
+                num_citas = '0'
+                
+
+            
+            print('*' * 40)
+            print(link)
+            print('' * 40)
+            
+            item = ItemLoader(Articulo(), articulo)
+            
+            item.add_value('Titulo', titulo)
+            item.add_value('Fecha', fecha)
+            item.add_value('Autor', autor)
+            item.add_value('Citas', num_citas)
+            item.add_xpath('Link', './/div[@class="gs_or_ggsm"]/a/@href')
+   
+            yield item.load_item()
+            time.sleep(random.uniform(1, 2))    
+            
