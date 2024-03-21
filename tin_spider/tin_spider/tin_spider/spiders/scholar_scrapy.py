@@ -86,7 +86,7 @@ class Scielo_spider(Spider):
 
     # URL SEMILLA
     start_urls = [
-        'https://scholar.google.com/scholar?hl=es&as_sdt=0%2C5&as_vis=1&q=%22ciencias+sociales+computacionales%22+AND+%28%22estudios+sociales%22+OR+%22fenomenos+sociales%22+OR+impacto+OR+PLN+OR+NLP+OR+Bigdata+OR+IA+OR+%22Web+scraping%22+OR+Embbeding%29&btnG='
+        'https://scholar.google.es/scholar?hl=es&as_sdt=0%2C5&q=%28%28%28pacifism+or+nonviolence+or+peace+or+positive+peace+or+peaceful+coexistence+or+conflict+resolution+or+mediation+or+peace+consolidation+or+peacekeeping+or+peace+restoration%29+and+%28territory+or+social+movement+or+society+or+community+or+group%29%29%29+OR+%28%28%28educational+model+or+pedagogical+research+or+educational+system+or+pedagogical+practice+pedagogical+experience%29+and+%28peace+education+or+culture+of+peace+or+citizenship+education+or+education+or+education+human+rights+education%29%29%29&btnG='
     ]
 
     # Funcion que se va a llamar cuando se haga el requerimiento a la URL semilla
@@ -108,10 +108,11 @@ class Scielo_spider(Spider):
             # Autor
             autor = articulo.xpath('.//div[@class="gs_ri"]/div[@class="gs_a"]//text()').getall()
             autor = ",".join(autor)
+            autor = autor.split('-')[0]
+            autor = autor.replace('\xa0', '').replace(',,', ',').replace(', ', ',').replace(',,', ',').replace('…', '')
             
-            autor = autor.split('-')
             print("*" * 100)
-            print(autor[0])
+            print(autor)
             print("*" * 100)
             
             
@@ -148,15 +149,16 @@ class Scielo_spider(Spider):
         
         # obtener el enlace a la siguiente página
         siguiente = sel.xpath(
-            '//div[@id="gs_nm"]/button[@type="button"][2]/span[@class="gs_wr"]/span[@class="gs_ico"]').get()
+            '//*[@id="gs_n"]/center/table//tr/td[12]/a/b/text()').get()
         
         url_next = response.url
         # url_next= re.sub(r'page=(\d+)', 'page={}'.format(numero), url_next)
 
        # Genera la URL de la siguiente página
         url_siguiente = generar_enlace_siguiente_pagina(url_next)
-        print(url_siguiente)
-
-        if siguiente is not None:
+        #print(url_siguiente)
+        print('antes de condicional')
+        print(siguiente)
+        if siguiente == 'Siguiente':
             yield response.follow(url_siguiente, self.parse)
             
